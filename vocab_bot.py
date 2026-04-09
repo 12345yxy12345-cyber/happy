@@ -94,7 +94,7 @@ st.title("📚 智能背单词机器人")
 st.markdown("---")
 
 # API 状态
-if client:
+if API_KEY:
     st.success("✅ AI 助手已就绪")
 else:
     st.warning("⚠️ 未配置 API Key，对话功能不可用")
