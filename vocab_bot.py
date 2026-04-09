@@ -1,18 +1,46 @@
 import streamlit as st
-import anthropic
+import httpx
 import os
+import json
 
 # 配置 API
 API_KEY = st.secrets.get("ZHIPU_API_KEY") or os.environ.get("ZHIPU_API_KEY")
 BASE_URL = st.secrets.get("ZHIPU_BASE_URL", "https://api.z.ai/api/anthropic")
 
-# 初始化客户端
-client = None
-if API_KEY:
+# 直接调用智谱海外版 API 的函数
+def call_claude_api(messages, system_prompt=""):
+    """直接调用智谱海外版 API"""
+    if not API_KEY:
+        return "API Key 未配置"
+
+    url = f"{BASE_URL}/v1/messages"
+
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01"
+    }
+
+    payload = {
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 1024,
+        "messages": messages
+    }
+
+    if system_prompt:
+        payload["system"] = system_prompt
+
     try:
-        client = anthropic.Anthropic(api_key=API_KEY, base_url=BASE_URL)
+        response = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+        response.raise_for_status()
+        result = response.json()
+        return result["content"][0]["text"]
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return "认证失败：请检查 API Key 是否正确"
+        return f"API 错误 ({e.response.status_code}): {e.response.text}"
     except Exception as e:
-        st.error(f"API 初始化失败: {e}")
+        return f"调用失败: {str(e)}"
 
 # 单词库（可扩展）
 word_bank = [
@@ -97,7 +125,7 @@ if st.session_state.chat_mode:
             st.markdown(prompt)
 
         # AI 回复
-        if client:
+        if API_KEY:
             with st.chat_message("assistant"):
                 message_placeholder = st.empty()
 
@@ -126,18 +154,10 @@ if st.session_state.chat_mode:
 - 回答简洁明了，重点突出
 """
 
-                try:
-                    response = client.messages.create(
-                        model="claude-3-5-sonnet-20241022",
-                        max_tokens=1024,
-                        system=system_prompt,
-                        messages=st.session_state.messages
-                    )
-                    assistant_message = response.content[0].text
-                    message_placeholder.markdown(assistant_message)
-                    st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-                except Exception as e:
-                    message_placeholder.error(f"API 调用失败: {e}")
+                # 调用 API
+                assistant_message = call_claude_api(st.session_state.messages, system_prompt)
+                message_placeholder.markdown(assistant_message)
+                st.session_state.messages.append({"role": "assistant", "content": assistant_message})
         else:
             st.error("请先配置 API Key")
 
