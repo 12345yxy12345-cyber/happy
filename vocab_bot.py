@@ -2,6 +2,7 @@ import streamlit as st
 import httpx
 import os
 import json
+import random
 
 # 配置 API
 API_KEY = st.secrets.get("ZHIPU_API_KEY") or os.environ.get("ZHIPU_API_KEY")
