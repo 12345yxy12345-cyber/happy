@@ -175,6 +175,11 @@ else:
             pool = word_bank[5:10]
         else:
             pool = word_bank[10:]
+
+        # 如果 pool 为空，从整个单词库中选择
+        if not pool:
+            pool = word_bank
+
         return random.choice(pool)
 
     # 显示当前单词或按钮
